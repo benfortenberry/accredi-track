@@ -22,7 +22,7 @@ var db *sql.DB
 
 func main() {
 
-	fmt.Println("starting !!! 1111")
+	fmt.Println("starting !!! 2222")
 
 	envErr := godotenv.Load(".env")
 	if envErr != nil {
@@ -53,7 +53,7 @@ func main() {
 	if pingErr != nil {
 		log.Fatal(pingErr)
 	}
-	fmt.Println("Connected! 11111")
+	fmt.Println("Connected! 22222")
 
 	encoding.InitHashids()
 
