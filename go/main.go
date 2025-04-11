@@ -65,7 +65,7 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "https://accreditrack.netlify.app/", "http://accreditrack.com"},
+		AllowOrigins:     []string{"http://localhost:5173", "https://accreditrack.netlify.app", "http://accreditrack.com"},
 		AllowMethods:     []string{"GET, POST, DELETE, PUT"},
 		AllowHeaders:     []string{"Content-Type", "Content-Length", "Accept-Encoding", "Authorization", "Cache-Control"},
 		ExposeHeaders:    []string{"Content-Length"},
