@@ -53,7 +53,7 @@ func Get(db *sql.DB, c *gin.Context) {
     END AS status
 FROM 
     employees e
-where e.deleted is null and userSub = ? `)
+where e.deleted is null and createdBy = ? `)
 	rows, err := db.Query(query, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
