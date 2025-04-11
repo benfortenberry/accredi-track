@@ -19,19 +19,19 @@ type Employee struct {
 
 func Get(db *sql.DB, c *gin.Context) {
 
-	// userSub, exists := c.Get("userSub")
+	userSub, exists := c.Get("userSub")
 
-	// if !exists {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: userSub not found"})
-	// 	return
-	// }
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: userSub not found"})
+		return
+	}
 
-	// // Convert userSub to a string
-	// userSubStr, ok := userSub.(string)
-	// if !ok {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse userSub"})
-	// 	return
-	// }
+	// Convert userSub to a string
+	userSubStr, ok := userSub.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse userSub"})
+		return
+	}
 
 	var employees []Employee
 	query := (`
@@ -53,8 +53,8 @@ func Get(db *sql.DB, c *gin.Context) {
     END AS status
 FROM 
     employees e
-where e.deleted is null `)
-	rows, err := db.Query(query)
+where e.deleted is null and userSub = ? `)
+	rows, err := db.Query(query, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query employees"})

@@ -74,7 +74,7 @@ func main() {
 	}))
 
 	// employee routes
-	router.GET("/employees", func(c *gin.Context) {
+	router.GET("/employees", middleware.AuthMiddleware(), func(c *gin.Context) {
 		employees.Get(db, c)
 	})
 
