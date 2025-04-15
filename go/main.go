@@ -7,9 +7,11 @@ import (
 	"os"
 	"time"
 
+	dashboard "github.com/benfortenberry/accredi-track/dashboard"
 	employeeLicesnses "github.com/benfortenberry/accredi-track/employeeLicenses"
 	employees "github.com/benfortenberry/accredi-track/employees"
-	encoding "github.com/benfortenberry/accredi-track/encoding"
+
+	// encoding "github.com/benfortenberry/accredi-track/encoding"
 	licenses "github.com/benfortenberry/accredi-track/licenses"
 	middleware "github.com/benfortenberry/accredi-track/middleware"
 	"github.com/gin-contrib/cors"
@@ -21,8 +23,6 @@ import (
 var db *sql.DB
 
 func main() {
-
-	fmt.Println("starting !!! 3333")
 
 	envErr := godotenv.Load(".env")
 	if envErr != nil {
@@ -53,9 +53,9 @@ func main() {
 	if pingErr != nil {
 		log.Fatal(pingErr)
 	}
-	fmt.Println("Connected! 3333")
+	fmt.Println("Connected!")
 
-	encoding.InitHashids()
+	// encoding.InitHashids()
 
 	// hd := hashids.NewData()
 	// hd.Salt = "your-salt" // Use a strong, unique salt
@@ -110,7 +110,7 @@ func main() {
 	})
 
 	// employee license routes
-	router.GET("/employee-licenses", middleware.AuthMiddleware(), func(c *gin.Context) {
+	router.GET("/employee-licenses/:id", middleware.AuthMiddleware(), func(c *gin.Context) {
 		employeeLicesnses.Get(db, c)
 	})
 
@@ -126,8 +126,20 @@ func main() {
 		employeeLicesnses.Delete(db, c)
 	})
 
+	// dashboard routes
+	router.GET("/metrics", middleware.AuthMiddleware(), func(c *gin.Context) {
+		dashboard.Get(db, c)
+	})
+
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "healthy",
+		})
+	})
+
+	// Email Notifications
+	router.GET("/send-mail", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "healthy",
 		})

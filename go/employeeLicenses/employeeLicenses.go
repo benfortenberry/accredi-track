@@ -45,6 +45,8 @@ func Get(db *sql.DB, c *gin.Context) {
 		return
 	}
 
+	id := c.Param("id")
+
 	var employeeLicenses []EmployeeLicense
 	query := `
 select
@@ -60,11 +62,12 @@ left join employees e on
 	el.employeeId = e.id
 left join licenses l on
 	el.licenseId = l.id
-	where el.deleted IS NULL
+	where el.employeeId = ?
+	 and el.deleted IS NULL
 	and el.createdBy = ?
 
 	`
-	rows, err := db.Query(query, userSubStr)
+	rows, err := db.Query(query, id, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query employee licenses"})
