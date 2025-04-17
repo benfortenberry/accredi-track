@@ -9,12 +9,13 @@ import (
 )
 
 type Employee struct {
-	ID        int    `json:"id"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Phone1    string `json:"phone1"`
-	Email     string `json:"email"`
-	Status    string `json:"status"`
+	ID           int    `json:"id"`
+	FirstName    string `json:"firstName"`
+	LastName     string `json:"lastName"`
+	Phone1       string `json:"phone1"`
+	Email        string `json:"email"`
+	Status       string `json:"status"`
+	LicenseCount int    `json:"licenseCount"`
 }
 
 func Get(db *sql.DB, c *gin.Context) {
@@ -50,7 +51,9 @@ func Get(db *sql.DB, c *gin.Context) {
               AND el.deleted IS NULL
         ) THEN 'Expired'
         ELSE 'Active'
-    END AS status
+    END AS status,
+	( SELECT COUNT(*) AS cnt
+FROM employeeLicenses el where el.employeeId = e.id and el.deleted is null ) as licenseCount
 FROM 
     employees e
 where e.deleted is null and createdBy = ? `)
@@ -67,7 +70,7 @@ where e.deleted is null and createdBy = ? `)
 		if err := rows.Scan(
 			&emp.ID, &emp.FirstName, &emp.LastName,
 
-			&emp.Phone1, &emp.Email, &emp.Status,
+			&emp.Phone1, &emp.Email, &emp.Status, &emp.LicenseCount,
 		); err != nil {
 			fmt.Println("Error: ", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan employee data"})
@@ -204,27 +207,28 @@ func Delete(db *sql.DB, c *gin.Context) {
 	query := `
         UPDATE employees
         SET deleted = current_timestamp()
-        WHERE id = ?
+        WHERE id = ?;
     `
 
 	// Execute the query
-	result, err := db.Exec(query, id)
+	_, err := db.Exec(query, id)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete employee"})
 		return
 	}
 
-	// Check if any rows were affected
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		fmt.Println("Error: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve affected rows"})
-		return
-	}
+	queryEmployeeLicenses := `
+        UPDATE employeeLicenses
+        SET deleted = current_timestamp()
+        WHERE employeeId = ?;
+    `
 
-	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Employee not found"})
+	// Execute the query
+	_, err2 := db.Exec(queryEmployeeLicenses, id)
+	if err2 != nil {
+		fmt.Println("Error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete employee licenses"})
 		return
 	}
 

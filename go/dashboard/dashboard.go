@@ -42,6 +42,17 @@ func isPastDate(date time.Time) bool {
 	return date.Before(now)
 }
 
+func isAlmostPastDate(date time.Time) bool {
+	// Get current date, truncated to remove time
+	soon := time.Now().Truncate(24*time.Hour).AddDate(0, 0, 30)
+	fmt.Println(soon)
+
+	// Truncate input date to remove time
+	date = date.Truncate(24 * time.Hour)
+
+	return date.Before(soon)
+}
+
 func Get(db *sql.DB, c *gin.Context) {
 
 	// Convert userSub to a string
@@ -56,34 +67,6 @@ func Get(db *sql.DB, c *gin.Context) {
 	queryTotalEmployees := (`
 	select count(*) as count from employees e 
 where e.deleted is null and createdBy = ? `)
-
-	// 	queryTotalExpiredEmployeeLicenses := (`
-	// select count(*) from employeeLicenses el where deleted
-	// is null and expDate < CURRENT_DATE() and createdBy = ?
-	// `)
-
-	// 	queryTotalExpiringSoonEmployeeLicenses := (`
-	// select count(*) from employeeLicenses el where deleted
-	// is null and expDate < CURDATE() + INTERVAL 1 DAY and expDate > CURDATE()  and createdBy = ?
-	// `)
-
-	queryEmployeeLicenses := (`
-select
-	el.id,
-	el.employeeId ,
-	el.licenseId,
-	el.issueDate,
-	el.expDate,
-	l.name  as licenseName
-from
-	employeeLicenses el
-left join employees e on
-	el.employeeId = e.id
-left join licenses l on
-	el.licenseId = l.id
-	 and el.deleted IS NULL
-	and el.createdBy = ?
-`)
 
 	//total employees
 	err1 := db.QueryRow(queryTotalEmployees, userSubStr).Scan(
@@ -102,15 +85,30 @@ left join licenses l on
 		return
 	}
 
-	// total employee Licenses
+	// get all employee Licenses
+
+	queryEmployeeLicenses := (`
+	select
+		el.id,
+		el.employeeId ,
+		el.licenseId,
+		el.issueDate,
+		el.expDate,
+		l.name  as licenseName
+	from
+		employeeLicenses el
+	left join employees e on
+		el.employeeId = e.id
+	left join licenses l on
+		el.licenseId = l.id
+		 and el.deleted IS NULL
+		and el.createdBy = ?
+	where el.deleted is null
+	`)
 
 	var employeeLicenses []EmployeeLicense
 
 	rows, err2 := db.Query(queryEmployeeLicenses, userSubStr)
-
-	// err2 := db.QueryRow(queryTotalEmployeeLicenses, userSubStr).Scan(
-	// 	&metrics.TotalEmployeeLicenses,
-	// )
 
 	if err2 != nil {
 		if err2 == sql.ErrNoRows {
@@ -142,12 +140,12 @@ left join licenses l on
 	defer rows.Close()
 
 	var expiredEmployeeLicenses []EmployeeLicense
-
+	var expiringSoonEmployeeLicenses []EmployeeLicense
 	layout := "2006-01-02"
 
 	for i := 0; i < len(employeeLicenses); i++ {
-		// Access each element using the index
-		element := expiredEmployeeLicenses[i]
+		element := employeeLicenses[i]
+
 		parsedTime, err := time.Parse(layout, element.ExpDate)
 
 		if err != nil {
@@ -157,31 +155,41 @@ left join licenses l on
 
 		if isPastDate(parsedTime) {
 			expiredEmployeeLicenses = append(expiredEmployeeLicenses, element)
+		} else if isAlmostPastDate(parsedTime) {
+			expiringSoonEmployeeLicenses = append(expiringSoonEmployeeLicenses, element)
+
 		}
-		// Perform operations with the element
-		//fmt.Println("Index:", i, "Value:", element)
+
 	}
 
+	totalActive := len(employeeLicenses) - len(expiredEmployeeLicenses)
+	metrics.ComplianceRate = float32(totalActive) / float32(len(employeeLicenses)) * 100
 	metrics.ExpiredCount = len(expiredEmployeeLicenses)
-	fmt.Println((expiredEmployeeLicenses))
+	metrics.ExpiringSoon = len(expiringSoonEmployeeLicenses)
+	metrics.TotalEmployeeLicenses = len(employeeLicenses)
+	metrics.LicenseAvg = float32(len(employeeLicenses)) / float32(metrics.TotalEmployees)
 
-	// // total expiring soon
-	// err3 := db.QueryRow(queryTotalExpiringSoonEmployeeLicenses, userSubStr).Scan(
-	// 	&metrics.ExpiringSoon,
-	// )
+	//notifications last 30 days
 
-	// if err3 != nil {
-	// 	if err3 == sql.ErrNoRows {
-	// 		// If no rows are found, return a 404 error
-	// 		c.JSON(http.StatusNotFound, gin.H{"error": "Data not found"})
-	// 	} else {
-	// 		// For other errors, return a 500 error
-	// 		fmt.Println("Error: ", err3)
-	// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve dashboard metrics"})
-	// 	}
-	// 	return
-	// }
+	queryNotifications := (`
+	select count(*) as count from notifications
+where userSub = ? `)
 
-	// // Respond with the employee data
-	// c.JSON(http.StatusOK, metrics)
+	err3 := db.QueryRow(queryNotifications, userSubStr).Scan(
+		&metrics.NotificationCount,
+	)
+
+	if err3 != nil {
+		if err3 == sql.ErrNoRows {
+			// If no rows are found, return a 404 error
+			c.JSON(http.StatusNotFound, gin.H{"error": "Data not found"})
+		} else {
+			// For other errors, return a 500 error
+			fmt.Println("Error: ", err3)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve dashboard metrics"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, metrics)
 }

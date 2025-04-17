@@ -12,6 +12,7 @@ type License struct {
 	ID        int    `json:"id"`
 	Name      string `json:"name"`
 	CreatedBy string `json:"createdBy"`
+	InUseBy   string `json:"inUseBy"`
 }
 
 func Get(db *sql.DB, c *gin.Context) {
@@ -32,7 +33,10 @@ func Get(db *sql.DB, c *gin.Context) {
 
 	var licenses []License
 
-	query := `SELECT id, name FROM licenses where deleted IS NULL and createdBy =?`
+	query := `SELECT id, name,
+ ( SELECT IFNULL(JSON_ARRAYAGG(employeeId) ,"")
+FROM employeeLicenses el where el.licenseId = l.id and el.deleted is null ) as inUseBy
+FROM licenses l where deleted IS NULL and createdBy =?`
 	rows, err := db.Query(query, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -44,7 +48,7 @@ func Get(db *sql.DB, c *gin.Context) {
 	for rows.Next() {
 		var lic License
 		if err := rows.Scan(
-			&lic.ID, &lic.Name,
+			&lic.ID, &lic.Name, &lic.InUseBy,
 		); err != nil {
 			fmt.Println("Error: ", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan license data"})
