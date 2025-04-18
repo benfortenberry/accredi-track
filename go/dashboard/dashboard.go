@@ -3,6 +3,7 @@ package employees
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -16,7 +17,7 @@ type Metrics struct {
 	ExpiringSoon          int     `json:"expiringSoon"`
 	LicenseAvg            float32 `json:"licenseAvg"`
 	NotificationCount     int     `json:"notificationCount"`
-	ComplianceRate        float32 `json:"complianceRate"`
+	ComplianceRate        float64 `json:"complianceRate"`
 	TotalEmployeeLicenses int     `json:"totalEmployeeLicenses"`
 }
 
@@ -31,6 +32,11 @@ type EmployeeLicense struct {
 	LicenseID   int    `json:"licenseId"`
 	IssueDate   string `json:"issueDate"`
 	ExpDate     string `json:"expDate"`
+}
+
+type LicenseChartData struct {
+	Count       int    `json:"count"`
+	LicenseName string `json:"licenseName"`
 }
 
 func isPastDate(date time.Time) bool {
@@ -51,6 +57,15 @@ func isAlmostPastDate(date time.Time) bool {
 	date = date.Truncate(24 * time.Hour)
 
 	return date.Before(soon)
+}
+
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func toFixed(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num*output)) / output
 }
 
 func Get(db *sql.DB, c *gin.Context) {
@@ -163,7 +178,7 @@ where e.deleted is null and createdBy = ? `)
 	}
 
 	totalActive := len(employeeLicenses) - len(expiredEmployeeLicenses)
-	metrics.ComplianceRate = float32(totalActive) / float32(len(employeeLicenses)) * 100
+	metrics.ComplianceRate = toFixed(float64(totalActive)/float64(len(employeeLicenses)), 2) * 100
 	metrics.ExpiredCount = len(expiredEmployeeLicenses)
 	metrics.ExpiringSoon = len(expiringSoonEmployeeLicenses)
 	metrics.TotalEmployeeLicenses = len(employeeLicenses)
@@ -192,4 +207,53 @@ where userSub = ? `)
 	}
 
 	c.JSON(http.StatusOK, metrics)
+}
+
+func GetLicenseChartData(db *sql.DB, c *gin.Context) {
+
+	userSubStr, ok := utils.GetUserSub(c)
+	if !ok {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
+		return
+	}
+
+	var licenseChartData []LicenseChartData
+	query := (`
+	SELECT COUNT(el.id) as count, l.name 
+FROM employeeLicenses el 
+left join licenses l on el.licenseId = l.id 
+where el.deleted is null and el.expDate > CURDATE() and el.createdby = ?
+GROUP BY l.name ;`)
+	rows, err := db.Query(query, userSubStr)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query license chart"})
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var licChartData LicenseChartData
+		if err := rows.Scan(
+			&licChartData.Count, &licChartData.LicenseName,
+		); err != nil {
+			fmt.Println("Error: ", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan license chart data"})
+			return
+		}
+
+		//encodedID := encoding.EncodeID(emp.ID)
+		// emp.ID = 0                 // Clear the original ID
+		//emp.EmployeeID = encodedID // Add the encoded ID to the response
+
+		licenseChartData = append(licenseChartData, licChartData)
+	}
+
+	if err := rows.Err(); err != nil {
+		fmt.Println("Error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating over rows"})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, licenseChartData)
 }

@@ -131,6 +131,10 @@ func main() {
 		dashboard.Get(db, c)
 	})
 
+	router.GET("/metrics/license-chart-data", middleware.AuthMiddleware(), func(c *gin.Context) {
+		dashboard.GetLicenseChartData(db, c)
+	})
+
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
