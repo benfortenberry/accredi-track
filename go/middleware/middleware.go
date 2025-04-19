@@ -69,7 +69,7 @@ func AuthMiddleware() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			fmt.Println(sub)
+			// fmt.Println(sub)
 			c.Set("userSub", sub)
 
 			// Validate audience

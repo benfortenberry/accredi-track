@@ -41,7 +41,7 @@ type LicenseChartData struct {
 
 type LicenseExpiringChartData struct {
 	Count int    `json:"count"`
-	Month string `json:"licenseName"`
+	Month string `json:"month"`
 }
 
 func isPastDate(date time.Time) bool {
@@ -228,7 +228,7 @@ func GetLicenseChartData(db *sql.DB, c *gin.Context) {
 FROM employeeLicenses el 
 left join licenses l on el.licenseId = l.id 
 where el.deleted is null and el.expDate > CURDATE() and el.createdby = ?
-GROUP BY l.name ;`)
+GROUP BY l.name LIMIT 5`)
 	rows, err := db.Query(query, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -273,7 +273,7 @@ func GetExpiredLicenseChartData(db *sql.DB, c *gin.Context) {
 FROM employeeLicenses el 
 left join licenses l on el.licenseId = l.id 
 where el.deleted is null and el.expDate < CURDATE() and el.createdby = ?
-GROUP BY l.name ;`)
+GROUP BY l.name LIMIT 5`)
 	rows, err := db.Query(query, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -361,18 +361,19 @@ WHERE
 	expDate BETWEEN DATE_ADD(CURDATE(), INTERVAL 4 MONTH) AND DATE_ADD(CURDATE(), INTERVAL 5 MONTH)
 	and deleted is null  and createdBy= ?
 `)
-	rows, err := db.Query(query, userSubStr)
+	rows, err := db.Query(query, userSubStr, userSubStr, userSubStr, userSubStr, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query expiring license chart"})
 		return
 	}
-	defer rows.Close()
+	//defer rows.Close()
 
 	for rows.Next() {
 		var licChartData LicenseExpiringChartData
+
 		if err := rows.Scan(
-			&licChartData.Count, &licChartData.Month,
+			&licChartData.Month, &licChartData.Count,
 		); err != nil {
 			fmt.Println("Error: ", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan expiring license chart data"})

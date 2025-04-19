@@ -212,7 +212,7 @@ func Put(db *sql.DB, c *gin.Context) {
         WHERE id = ?
     `
 
-	fmt.Println(lic.LicenseID, lic.IssueDate, lic.ExpDate, id)
+	// fmt.Println(lic.LicenseID, lic.IssueDate, lic.ExpDate, id)
 
 	// Execute the query
 	_, err := db.Exec(query,
