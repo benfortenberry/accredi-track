@@ -228,7 +228,7 @@ func GetLicenseChartData(db *sql.DB, c *gin.Context) {
 FROM employeeLicenses el 
 left join licenses l on el.licenseId = l.id 
 where el.deleted is null and el.expDate > CURDATE() and el.createdby = ?
-GROUP BY l.name LIMIT 5`)
+GROUP BY l.name `)
 	rows, err := db.Query(query, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -273,7 +273,7 @@ func GetExpiredLicenseChartData(db *sql.DB, c *gin.Context) {
 FROM employeeLicenses el 
 left join licenses l on el.licenseId = l.id 
 where el.deleted is null and el.expDate < CURDATE() and el.createdby = ?
-GROUP BY l.name LIMIT 5`)
+GROUP BY l.name`)
 	rows, err := db.Query(query, userSubStr)
 	if err != nil {
 		fmt.Println("Error: ", err)

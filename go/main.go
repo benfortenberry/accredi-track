@@ -10,6 +10,7 @@ import (
 	dashboard "github.com/benfortenberry/accredi-track/dashboard"
 	employeeLicesnses "github.com/benfortenberry/accredi-track/employeeLicenses"
 	employees "github.com/benfortenberry/accredi-track/employees"
+	"github.com/stripe/stripe-go/v74"
 
 	// encoding "github.com/benfortenberry/accredi-track/encoding"
 	licenses "github.com/benfortenberry/accredi-track/licenses"
@@ -29,6 +30,8 @@ func main() {
 		fmt.Println("env error")
 		log.Fatalf("Error loading .env file: %v", envErr)
 	}
+
+	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 
 	defer db.Close()
 
@@ -156,5 +159,11 @@ func main() {
 			"status": "healthy",
 		})
 	})
+
+	//Stripe
+	router.GET("/create-checkout-session", middleware.AuthMiddleware(), func(c *gin.Context) {
+		stripe.createCheckoutSession(db, c)
+	})
+
 	router.Run(":8080")
 }
