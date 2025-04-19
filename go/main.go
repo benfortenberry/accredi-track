@@ -162,7 +162,7 @@ func main() {
 
 	//Stripe
 	router.GET("/create-checkout-session", middleware.AuthMiddleware(), func(c *gin.Context) {
-		payment.createCheckoutSession(db, c)
+		payment.createCheckoutSession()
 	})
 
 	router.Run(":8080")

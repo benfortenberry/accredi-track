@@ -1,4 +1,4 @@
-package employees
+package dashboard
 
 import (
 	"database/sql"
