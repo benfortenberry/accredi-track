@@ -10,7 +10,6 @@ import (
 	dashboard "github.com/benfortenberry/accredi-track/dashboard"
 	employeeLicesnses "github.com/benfortenberry/accredi-track/employeeLicenses"
 	employees "github.com/benfortenberry/accredi-track/employees"
-	"github.com/stripe/stripe-go/v74"
 
 	// encoding "github.com/benfortenberry/accredi-track/encoding"
 	licenses "github.com/benfortenberry/accredi-track/licenses"
@@ -19,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"github.com/stripe/stripe-go/v74"
 )
 
 var db *sql.DB
@@ -162,7 +162,7 @@ func main() {
 
 	//Stripe
 	router.GET("/create-checkout-session", middleware.AuthMiddleware(), func(c *gin.Context) {
-		stripe.createCheckoutSession(db, c)
+		payment.createCheckoutSession(db, c)
 	})
 
 	router.Run(":8080")
