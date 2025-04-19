@@ -39,6 +39,11 @@ type LicenseChartData struct {
 	LicenseName string `json:"licenseName"`
 }
 
+type LicenseExpiringChartData struct {
+	Count int    `json:"count"`
+	Month string `json:"licenseName"`
+}
+
 func isPastDate(date time.Time) bool {
 	// Get current date, truncated to remove time
 	now := time.Now().Truncate(24 * time.Hour)
@@ -242,9 +247,137 @@ GROUP BY l.name ;`)
 			return
 		}
 
-		//encodedID := encoding.EncodeID(emp.ID)
-		// emp.ID = 0                 // Clear the original ID
-		//emp.EmployeeID = encodedID // Add the encoded ID to the response
+		licenseChartData = append(licenseChartData, licChartData)
+	}
+
+	if err := rows.Err(); err != nil {
+		fmt.Println("Error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating over rows"})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, licenseChartData)
+}
+
+func GetExpiredLicenseChartData(db *sql.DB, c *gin.Context) {
+
+	userSubStr, ok := utils.GetUserSub(c)
+	if !ok {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
+		return
+	}
+
+	var licenseChartData []LicenseChartData
+	query := (`
+	SELECT COUNT(el.id) as count, l.name 
+FROM employeeLicenses el 
+left join licenses l on el.licenseId = l.id 
+where el.deleted is null and el.expDate < CURDATE() and el.createdby = ?
+GROUP BY l.name ;`)
+	rows, err := db.Query(query, userSubStr)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query expired license chart"})
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var licChartData LicenseChartData
+		if err := rows.Scan(
+			&licChartData.Count, &licChartData.LicenseName,
+		); err != nil {
+			fmt.Println("Error: ", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan expired license chart data"})
+			return
+		}
+
+		licenseChartData = append(licenseChartData, licChartData)
+	}
+
+	if err := rows.Err(); err != nil {
+		fmt.Println("Error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating over rows"})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, licenseChartData)
+}
+
+func GetExpiringsByMonth(db *sql.DB, c *gin.Context) {
+
+	userSubStr, ok := utils.GetUserSub(c)
+	if !ok {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
+		return
+	}
+
+	var licenseChartData []LicenseExpiringChartData
+	query := (`
+	
+    
+   SELECT
+	DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 MONTH), '%M') AS month,
+	COUNT(*) AS count
+FROM
+	employeeLicenses
+WHERE
+	expDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 1 MONTH)
+	and deleted is null  and createdBy= ?
+union all 
+       SELECT
+	DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 2 MONTH), '%M') AS month,
+	COUNT(*) AS count
+FROM
+	employeeLicenses
+WHERE
+	expDate BETWEEN DATE_ADD(CURDATE(), INTERVAL 1 MONTH) AND DATE_ADD(CURDATE(), INTERVAL 2 MONTH)
+	and deleted is null  and createdBy= ?
+union all
+       SELECT
+	DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 3 MONTH), '%M') AS month,
+	COUNT(*) AS count
+FROM
+	employeeLicenses
+WHERE
+	expDate BETWEEN DATE_ADD(CURDATE(), INTERVAL 2 MONTH) AND DATE_ADD(CURDATE(), INTERVAL 3 MONTH)
+	and deleted is null  and createdBy= ?
+	union all
+  SELECT
+	DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 4 MONTH), '%M') AS month,
+	COUNT(*) AS count
+FROM
+	employeeLicenses
+WHERE
+	expDate BETWEEN DATE_ADD(CURDATE(), INTERVAL 3 MONTH) AND DATE_ADD(CURDATE(), INTERVAL 4 MONTH)
+	and deleted is null and createdBy= ?
+		union all
+  SELECT
+	DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 5 MONTH), '%M') AS month,
+	COUNT(*) AS count
+FROM
+	employeeLicenses
+WHERE
+	expDate BETWEEN DATE_ADD(CURDATE(), INTERVAL 4 MONTH) AND DATE_ADD(CURDATE(), INTERVAL 5 MONTH)
+	and deleted is null  and createdBy= ?
+`)
+	rows, err := db.Query(query, userSubStr)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query expiring license chart"})
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var licChartData LicenseExpiringChartData
+		if err := rows.Scan(
+			&licChartData.Count, &licChartData.Month,
+		); err != nil {
+			fmt.Println("Error: ", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan expiring license chart data"})
+			return
+		}
 
 		licenseChartData = append(licenseChartData, licChartData)
 	}

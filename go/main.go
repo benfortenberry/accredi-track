@@ -135,6 +135,14 @@ func main() {
 		dashboard.GetLicenseChartData(db, c)
 	})
 
+	router.GET("/metrics/license-chart-data-expired", middleware.AuthMiddleware(), func(c *gin.Context) {
+		dashboard.GetExpiredLicenseChartData(db, c)
+	})
+
+	router.GET("/metrics/license-chart-data-expiring-soon", middleware.AuthMiddleware(), func(c *gin.Context) {
+		dashboard.GetExpiringsByMonth(db, c)
+	})
+
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{

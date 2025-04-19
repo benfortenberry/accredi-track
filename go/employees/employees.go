@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/benfortenberry/accredi-track/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,17 +21,9 @@ type Employee struct {
 
 func Get(db *sql.DB, c *gin.Context) {
 
-	userSub, exists := c.Get("userSub")
-
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: userSub not found"})
-		return
-	}
-
-	// Convert userSub to a string
-	userSubStr, ok := userSub.(string)
+	userSubStr, ok := utils.GetUserSub(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse userSub"})
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
 		return
 	}
 
@@ -95,17 +88,9 @@ where e.deleted is null and createdBy = ? `)
 
 func GetSingle(db *sql.DB, c *gin.Context) {
 
-	userSub, exists := c.Get("userSub")
-
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: userSub not found"})
-		return
-	}
-
-	// Convert userSub to a string
-	userSubStr, ok := userSub.(string)
+	userSubStr, ok := utils.GetUserSub(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse userSub"})
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
 		return
 	}
 
@@ -149,17 +134,9 @@ func GetSingle(db *sql.DB, c *gin.Context) {
 func Post(db *sql.DB, c *gin.Context) {
 	// Bind the JSON payload to an Employee struct
 
-	userSub, exists := c.Get("userSub")
-
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: userSub not found"})
-		return
-	}
-
-	// Convert userSub to a string
-	userSubStr, ok := userSub.(string)
+	userSubStr, ok := utils.GetUserSub(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse userSub"})
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
 		return
 	}
 
@@ -200,6 +177,13 @@ func Post(db *sql.DB, c *gin.Context) {
 }
 
 func Delete(db *sql.DB, c *gin.Context) {
+
+	_, ok := utils.GetUserSub(c)
+	if !ok {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
+		return
+	}
+
 	// Get the employee ID from the URL parameter
 	id := c.Param("id")
 
@@ -237,6 +221,13 @@ func Delete(db *sql.DB, c *gin.Context) {
 }
 
 func Put(db *sql.DB, c *gin.Context) {
+
+	_, ok := utils.GetUserSub(c)
+	if !ok {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "User Not Found"})
+		return
+	}
+
 	// Get the employee ID from the URL parameter
 	id := c.Param("id")
 
